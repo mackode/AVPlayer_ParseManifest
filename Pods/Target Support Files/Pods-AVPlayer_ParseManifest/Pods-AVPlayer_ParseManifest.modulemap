@@ -1,0 +1,6 @@
+framework module Pods_AVPlayer_ParseManifest {
+  umbrella header "Pods-AVPlayer_ParseManifest-umbrella.h"
+
+  export *
+  module * { export * }
+}
