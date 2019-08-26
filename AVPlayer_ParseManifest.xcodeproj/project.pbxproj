@@ -99,7 +99,6 @@
 				01D9785F2305FA2D00A13001 /* Sources */,
 				01D978602305FA2D00A13001 /* Frameworks */,
 				01D978612305FA2D00A13001 /* Resources */,
-				4F58FAB88680DFE066E10254 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -157,23 +156,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		4F58FAB88680DFE066E10254 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-AVPlayer_ParseManifest/Pods-AVPlayer_ParseManifest-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-AVPlayer_ParseManifest/Pods-AVPlayer_ParseManifest-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-AVPlayer_ParseManifest/Pods-AVPlayer_ParseManifest-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 		7E902230C374BF86F85672D2 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;

@@ -8,14 +8,11 @@
 
 import UIKit
 import AVKit
-import GCDWebServer
-import Alamofire
 
-class PlayerViewController: AVPlayerViewController, AVPlayerViewControllerDelegate, AVAssetResourceLoaderDelegate, AVPlayerItemMetadataCollectorPushDelegate {
+class PlayerViewController: AVPlayerViewController, AVPlayerViewControllerDelegate, AVAssetResourceLoaderDelegate {
 
     var playerItem: AVPlayerItem!
     var metadataCollector: AVPlayerItemMetadataCollector!
-    var server: GCDWebServer!
     var identifier: Int = 0
     let formatter = DateFormatter()
 
@@ -24,36 +21,17 @@ class PlayerViewController: AVPlayerViewController, AVPlayerViewControllerDelega
         // Do any additional setup after loading the view.
 
         self.formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-        // setup proxy
-        let server = GCDWebServer()
-        server.addDefaultHandler(forMethod: "GET", request: GCDWebServerRequest.self) { (request, completionBlock) in
-            Alamofire.request(String(format: "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/%@", request.url.lastPathComponent)).response { response in
-                let fileName = request.url.lastPathComponent
-                var data = response.data!
-
-                if fileName.contains(".m3u8") {
-                    data = self.overrideManifest(data)
-                }
-
-                let serverResponse = GCDWebServerDataResponse(data: data, contentType: "application/x-mpegURL")
-                completionBlock(serverResponse)
-            }
-        }
-        server.start()
 
         // setup AVPlayer
-        let proxiedVideoURLString = "\(server.serverURL?.absoluteString ?? "")level_1.m3u8"
-        let videoURL = URL(string: proxiedVideoURLString)
+        let videoURLString = "proxy://https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8"
+        let videoURL = URL(string: videoURLString)
         try! AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playback)
         let asset = AVURLAsset(url: videoURL!)
+        asset.resourceLoader.setDelegate(self, queue: DispatchQueue(label: "asset.resource.loader"))
 
-        //asset.resourceLoader.setDelegate(self, queue: DispatchQueue(label: "asset.resource.loader"))
         asset.loadValuesAsynchronously(forKeys: ["playable"]) {
             DispatchQueue.main.async {
-                self.metadataCollector = AVPlayerItemMetadataCollector()
-                self.metadataCollector.setDelegate(self, queue: DispatchQueue.main)
                 self.playerItem = AVPlayerItem(asset: asset)
-                self.playerItem.add(self.metadataCollector)
                 self.player = AVPlayer(playerItem: self.playerItem)
                 //self.player?.automaticallyWaitsToMinimizeStalling = false
                 self.player?.play()
@@ -61,34 +39,40 @@ class PlayerViewController: AVPlayerViewController, AVPlayerViewControllerDelega
         }
     }
 
-    // NOTE: -- add evetns
-    func overrideManifest(_ manifest: Data) -> Data {
-        self.identifier += 1
-        var modified = String(data: manifest, encoding: .utf8)
-        var lines = modified!.split { $0.isNewline }
+    func resourceLoader(_ resourceLoader: AVAssetResourceLoader, shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest) -> Bool {
+        let scheme = loadingRequest.request.url?.scheme
 
-        let date = Date(timeIntervalSinceReferenceDate: Date.timeIntervalSinceReferenceDate + 5.0)
-        let dataRangeLine = Substring(#"#EXT-X-DATERANGE:ID="\#(self.identifier)",START-DATE="\#(self.formatter.string(from: date))",X-AD-ID="3671232",PLANNED-DURATION=24,SCTE35-OUT=0xFC302100000000000000FFF01005000000BB7FEF7F7E0020F580000000000000532C8ACE"#)
+        if scheme == "proxy" {
+            let url = URL(string: String((loadingRequest.request.url?.absoluteString.dropFirst(8))!))!
+            if url.absoluteString.contains("master.m3u8") {
+                DispatchQueue.main.async {
+                    let url = URL(string: String((loadingRequest.request.url?.absoluteString.dropFirst(8))!))!
+                    // TODO: error handling
+                    let task = URLSession.shared.dataTask(with: url) {(data, response, error) in
+                        guard let data = data else { return }
+                        self.parseManifest(String(data: data, encoding: .utf8)!)
+                        loadingRequest.dataRequest?.respond(with: data)
+                        loadingRequest.finishLoading()
+                    }
+                    task.resume()
+                }
+            } else {
+                let redirect = URLRequest.init(url: url)
+                loadingRequest.redirect = redirect
+                let response = HTTPURLResponse.init(url: url, statusCode: 302, httpVersion: nil, headerFields: nil)
 
-        lines.insert(dataRangeLine, at: 6)
-        modified = lines.joined(separator: "\n")
-        return (modified?.data(using: .utf8))!
+                loadingRequest.response = response
+                loadingRequest.finishLoading()
+            }
+
+            return true
+        }
+
+        return false
     }
 
-    // NOTE: -- read events
-    func metadataCollector(_ metadataCollector: AVPlayerItemMetadataCollector, didCollect metadataGroups: [AVDateRangeMetadataGroup], indexesOfNewGroups: IndexSet, indexesOfModifiedGroups: IndexSet) {
-
-        for metaGroup in metadataGroups {
-            print("--- group ---")
-            print("now date", self.formatter.string(from: Date()))
-            print("start date", metaGroup.startDate)
-
-            for metaItem in metaGroup.items {
-                print("--- item ---")
-                print(metaItem)
-                print("--- ---- ---")
-            }
-        }
+    func parseManifest(_ manifest: String) {
+        print(manifest)
     }
 
 }
